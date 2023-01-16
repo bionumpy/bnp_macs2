@@ -22,24 +22,6 @@ class Params:
     p_value_cufoff: float = 0.001
 
 
-def extend_to_size(intervals, fragment_length, size):
-    is_forward = intervals.strand == "+"
-    start = np.where(is_forward,
-                     intervals.start,
-                     np.maximum(intervals.stop-fragment_length, 0))
-    # print(intervals, fragment_length, size)
-    stop = np.where(is_forward,
-                    intervals.stop,
-                    np.minimum(intervals.start+fragment_length, size))
-
-    return dataclasses.replace(
-        intervals,
-        start=start,
-        stop=stop)
-
-
-
-
 def get_control_pileup(reads, size, window_sizes, read_rate):
     mid_points = (reads.start+reads.stop)//2
     pileup = float(read_rate)
@@ -55,21 +37,16 @@ def get_control_pileup(reads, size, window_sizes, read_rate):
 def logsf(count, mu):
     return np.log(pdtrc(count, mu))
 
-
-def get_p_values(intervals, chrom_size, fragment_length, read_rate):
-    intervals.strand = intervals.strand.ravel()
+def get_p_values(intervals, geometry, fragment_length, read_rate):
     fragment_pileup = get_fragment_pileup(intervals, fragment_length, chrom_size)
-    print(fragment_pileup.to_bedgraph('.'))
-    # print(bnp.bedgraph.from_runlength_array(str(intervals.chromosome[0]), fragment_pileup))
-    control = fragment_length*get_control_pileup(intervals, chrom_size, [1000, 10000], read_rate)
+    control = fragment_length*get_control_pileup(intervals, [1000, 10000], read_rate, geometry)
     p_values = logsf(fragment_pileup, control)
     return p_values
 
-
 def call_peaks(p_values, p_value_cufoff, min_length, max_gap=30):
     peaks = p_values < np.log(p_value_cufoff)
-    peaks = Interval(['.']*len(peaks.starts), peaks.starts, peaks.ends)[peaks.values]
-    peaks = merge_intervals(peaks, distance=max_gap)
+    peaks = peaks.to_intervals()
+    peaks = geometry.merge_intervals(peaks, distance=max_gap)
     peaks = peaks[(peaks.stop-peaks.start) >= min_length]
     return peaks
 

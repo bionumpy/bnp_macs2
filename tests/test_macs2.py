@@ -1,6 +1,7 @@
 import numpy as np
 from bnp_macs2.fragment_pileup import get_fragment_pileup
-from bionumpy import Bed6
+from bnp_macs2.control_pileup import get_average_pileup, get_control_pileup
+from bionumpy import Bed6, str_equal
 from bionumpy.arithmetics.geometry import Geometry
 import pytest
 
@@ -11,12 +12,13 @@ def intervals():
         [('chr1', 10, 20, '.', '.', '-'),
          ('chr1', 11, 22, '.', '.', '+'),
          ('chr1', 40, 60, '.', '.', '-'),
-         ('chr1', 15, 35, '.', '.', '+')])
+         ('chr1', 15, 35, '.', '.', '+'),
+         ('chr2', 15, 35, '.', '.', '+')])
 
 
 @pytest.fixture
 def geometry():
-    return Geometry({'chr1': 100})
+    return Geometry({'chr1': 100, 'chr2': 60})
 
 
 def dense_fragment_pileup(intervals, fragment_length, size):
@@ -31,7 +33,34 @@ def dense_fragment_pileup(intervals, fragment_length, size):
     return pileup
 
 
+def dense_average_pileup(intervals, window_size, size):
+    pileup = np.zeros(size, dtype=int)
+    for i in range(size):
+        for interval in intervals:
+            if (i-window_size//2) < interval.start <= (i+window_size//2):
+                pileup[i] += 1
+    return pileup/window_size
+
+
+def dense_control_pileup(intervals, window_sizes, read_rate, size):
+    r = np.maximum(*[dense_average_pileup(intervals, window_size, size) for window_size in window_sizes])
+    return np.maximum(r, read_rate)
+
+
 def test_get_fragment_pileup(intervals: Bed6, geometry: Geometry):
-    true_pileup = {name: dense_fragment_pileup(intervals, 20, geometry.chrom_size(name)) for name in geometry.names()}
+    true_pileup = {name: dense_fragment_pileup(intervals[str_equal(intervals.chromosome, name)], 20, geometry.chrom_size(name)) for name in geometry.names()}
     fragment_pileup = get_fragment_pileup(intervals, 20, geometry)
     np.testing.assert_equal(true_pileup, fragment_pileup.to_dict())
+
+
+@pytest.mark.parametrize('window_size', [10, 20])
+def test_get_average_pileup(intervals, geometry, window_size):
+    true_pileup = {name: dense_average_pileup(intervals[str_equal(intervals.chromosome, name)], window_size, geometry.chrom_size(name)) for name in geometry.names()}
+    avg_pileup = get_average_pileup(intervals, window_size, geometry)
+    np.testing.assert_equal(true_pileup, avg_pileup.to_dict())
+
+
+def test_get_control_pileup(intervals, geometry):
+    true_pileup = {name: dense_control_pileup(intervals[str_equal(intervals.chromosome, name)], [10, 20], 0.1, geometry.chrom_size(name)) for name in geometry.names()}
+    control_pileup = get_control_pileup(intervals, [10, 20], 0.1, geometry)
+    np.testing.assert_equal(true_pileup, control_pileup.to_dict())    
