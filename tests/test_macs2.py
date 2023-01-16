@@ -32,6 +32,6 @@ def dense_fragment_pileup(intervals, fragment_length, size):
 
 
 def test_get_fragment_pileup(intervals: Bed6, geometry: Geometry):
-    true_pileup = dense_fragment_pileup(intervals, 20, 100)
+    true_pileup = {name: dense_fragment_pileup(intervals, 20, geometry.chrom_size(name)) for name in geometry.names()}
     fragment_pileup = get_fragment_pileup(intervals, 20, geometry)
-    np.testing.assert_equal(true_pileup, fragment_pileup.to_array())
+    np.testing.assert_equal(true_pileup, fragment_pileup.to_dict())
