@@ -6,8 +6,10 @@ import numpy as np
 import logging
 
 from bionumpy.datatypes import Interval
+from bionumpy.arithmetics.geometry import Geometry
 from .control_pileup import get_control_pileup
 from .fragment_pileup import get_fragment_pileup
+from .call_peaks import call_peaks
 # import matplotlib.pyplot as plt
 import bionumpy as bnp
 
@@ -15,10 +17,11 @@ logging.basicConfig(level=logging.INFO)
 
 
 @dataclasses.dataclass
-class Params:
+class Macs2Params:
     fragment_length: int = 150
-    p_value_cufoff: float = 0.001
-
+    n_reads: int = None
+    p_value_cutoff: float = 0.001
+    max_gap: int = 30
 
 # def get_control_pileup(reads, size, window_sizes, read_rate):
 #     mid_points = (reads.start+reads.stop)//2
@@ -37,30 +40,28 @@ def logsf(count, mu):
 
 
 def get_p_values(intervals, geometry, fragment_length, read_rate):
-    fragment_pileup = get_fragment_pileup(intervals, fragment_length, chrom_size)
+    fragment_pileup = get_fragment_pileup(intervals, fragment_length, geometry)
     control = fragment_length*get_control_pileup(intervals, [1000, 10000], read_rate, geometry)
     p_values = logsf(fragment_pileup, control)
     return p_values
 
 
-@bnp.streamable()
-def macs2(intervals, chrom_size, fragment_length, read_rate, p_value_cutoff, min_length, max_gap=30):
+# @bnp.streamable()
+def macs2(intervals: Interval, geometry: Geometry, params: Macs2Params):
     if not len(intervals):
         return Interval.empty()
-    p_values = get_p_values(intervals, chrom_size,
-                            fragment_length, read_rate)
-    peaks = call_peaks(p_values, p_value_cutoff, fragment_length)
-    return Interval(intervals.chromosome[:len(peaks)], peaks.start, peaks.stop)
+    p_values = get_p_values(intervals, geometry,
+                            params.fragment_length,
+                            params.n_reads/geometry.size())
+    return call_peaks(p_values, params.p_value_cutoff, params.fragment_length, params.max_gap, geometry)
 
 
 def main(filename: str, genome_file: str, fragment_length: int = 150, p_value_cutoff: float = 0.001, outfilename: str = None):
     genome = bnp.open(genome_file, buffer_type=bnp.io.files.ChromosomeSizeBuffer).read()
-    genome_size = genome.size.sum()
     chrom_sizes = {str(name): size for name, size in zip(genome.name, genome.size)}
     intervals = bnp.open(filename, buffer_type=bnp.io.delimited_buffers.Bed6Buffer).read_chunks()
     multistream = bnp.MultiStream(chrom_sizes, intervals=intervals)
     n_reads = bnp.count_entries(filename)
-    read_rate = n_reads/genome_size
     result = macs2(multistream.intervals, multistream.lengths, fragment_length,
                    read_rate, p_value_cutoff, fragment_length)
     if outfilename is not None:

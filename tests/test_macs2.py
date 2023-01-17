@@ -2,6 +2,7 @@ import numpy as np
 from bnp_macs2.fragment_pileup import get_fragment_pileup
 from bnp_macs2.control_pileup import get_average_pileup, get_control_pileup
 from bnp_macs2.call_peaks import call_peaks
+from bnp_macs2.cli import Macs2Params, macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
 from bionumpy.arithmetics.geometry import Geometry, GenomicTrack
@@ -94,3 +95,11 @@ def test_call_peaks(pileup, geometry, peaks):
     called_peaks = call_peaks(np.log(pileup), 0.05, 20, 10, geometry)
     called_peaks.chromosome = called_peaks.chromosome.encoding.decode(called_peaks.chromosome)
     assert_bnpdataclass_equal(called_peaks, peaks)
+
+
+def testmacs2_acceptance(intervals, geometry):
+    params = Macs2Params(fragment_length=20,
+                         max_gap=10,
+                         p_value_cutoff=0.05,
+                         n_reads = len(intervals))
+    macs2(intervals, geometry, params)
