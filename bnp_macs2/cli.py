@@ -59,11 +59,14 @@ def macs2(intervals: Interval, geometry: Geometry, params: Macs2Params):
 def main(filename: str, genome_file: str, fragment_length: int = 150, p_value_cutoff: float = 0.001, outfilename: str = None):
     genome = bnp.open(genome_file, buffer_type=bnp.io.files.ChromosomeSizeBuffer).read()
     chrom_sizes = {str(name): size for name, size in zip(genome.name, genome.size)}
-    intervals = bnp.open(filename, buffer_type=bnp.io.delimited_buffers.Bed6Buffer).read_chunks()
-    multistream = bnp.MultiStream(chrom_sizes, intervals=intervals)
-    n_reads = bnp.count_entries(filename)
-    result = macs2(multistream.intervals, multistream.lengths, fragment_length,
-                   read_rate, p_value_cutoff, fragment_length)
+    intervals = bnp.open(filename, buffer_type=bnp.io.delimited_buffers.Bed6Buffer).read()
+    tag_size = np.median(intervals.stop-intervals.start)
+    params = Macs2Params(
+        fragment_length=fragment_length,
+        p_value_cutoff=p_value_cutoff,
+        max_gap=int(tag_size),
+        n_reads=bnp.count_entries(filename))
+    result = macs2(intervals, Geometry(chrom_sizes), params)
     if outfilename is not None:
         with bnp.open(outfilename, 'w') as f:
             f.write(result)
@@ -88,8 +91,9 @@ if __name__ == "__main__":
 
     typer.run(main)
 
-def main():
-    return
+
+def run():
+    typer.run(main)
 
 
 if __name__ == "__main__":

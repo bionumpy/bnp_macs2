@@ -10,7 +10,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['typer', ]
+requirements = ['typer[all]', ]
 
 test_requirements = ['pytest>=3', "hypothesis"]
 
@@ -31,7 +31,7 @@ setup(
     description="Reimplementation of MACS2 using BioNumPy",
     entry_points={
         'console_scripts': [
-            'bnp_macs2=bnp_macs2.cli:main',
+            'bnp_macs2=bnp_macs2.cli:run',
         ],
     },
     install_requires=requirements,
