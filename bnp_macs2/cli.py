@@ -5,11 +5,9 @@ from scipy.special import pdtrc
 import numpy as np
 import logging
 
-from bionumpy.io.bam import BamIntervalBuffer
-from bionumpy.arithmetics import get_pileup, get_boolean_mask, merge_intervals
 from bionumpy.datatypes import Interval
-
-
+from .control_pileup import get_control_pileup
+from .fragment_pileup import get_fragment_pileup
 # import matplotlib.pyplot as plt
 import bionumpy as bnp
 
@@ -22,33 +20,27 @@ class Params:
     p_value_cufoff: float = 0.001
 
 
-def get_control_pileup(reads, size, window_sizes, read_rate):
-    mid_points = (reads.start+reads.stop)//2
-    pileup = float(read_rate)
-    for window_size in window_sizes:
-        start = np.maximum(mid_points-window_size//2, 0)
-        stop = np.minimum(mid_points+window_size//2, size)
-        windows = dataclasses.replace(reads, start=start, stop=stop)
-        new_pileup = get_pileup(windows, size)
-        pileup = np.maximum(pileup, new_pileup/window_size)
-    return pileup
+# def get_control_pileup(reads, size, window_sizes, read_rate):
+#     mid_points = (reads.start+reads.stop)//2
+#     pileup = float(read_rate)
+#     for window_size in window_sizes:
+#         start = np.maximum(mid_points-window_size//2, 0)
+#         stop = np.minimum(mid_points+window_size//2, size)
+#         windows = dataclasses.replace(reads, start=start, stop=stop)
+#         new_pileup = get_pileup(windows, size)
+#         pileup = np.maximum(pileup, new_pileup/window_size)
+#     return pileup
 
 
 def logsf(count, mu):
     return np.log(pdtrc(count, mu))
+
 
 def get_p_values(intervals, geometry, fragment_length, read_rate):
     fragment_pileup = get_fragment_pileup(intervals, fragment_length, chrom_size)
     control = fragment_length*get_control_pileup(intervals, [1000, 10000], read_rate, geometry)
     p_values = logsf(fragment_pileup, control)
     return p_values
-
-def call_peaks(p_values, p_value_cufoff, min_length, max_gap=30):
-    peaks = p_values < np.log(p_value_cufoff)
-    peaks = peaks.to_intervals()
-    peaks = geometry.merge_intervals(peaks, distance=max_gap)
-    peaks = peaks[(peaks.stop-peaks.start) >= min_length]
-    return peaks
 
 
 @bnp.streamable()
