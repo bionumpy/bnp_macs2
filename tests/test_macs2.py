@@ -2,7 +2,7 @@ import numpy as np
 from bnp_macs2.fragment_pileup import get_fragment_pileup
 from bnp_macs2.control_pileup import get_average_pileup, get_control_pileup
 from bnp_macs2.call_peaks import call_peaks
-from bnp_macs2.cli import Macs2Params, macs2
+from bnp_macs2.cli import Macs2Params, Macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
 from bionumpy.arithmetics.geometry import Geometry, GenomicTrack
@@ -102,4 +102,5 @@ def testmacs2_acceptance(intervals, geometry):
                          max_gap=10,
                          p_value_cutoff=0.05,
                          n_reads = len(intervals))
-    macs2(intervals, geometry, params)
+    Macs2(geometry, params).run(intervals)
+    # macs2(intervals, geometry, params)
