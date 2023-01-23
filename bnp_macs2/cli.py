@@ -4,7 +4,7 @@ import numpy as np
 import logging
 
 import bionumpy as bnp
-from bionumpy.arithmetics.geometry import Geometry
+from bionumpy.arithmetics.geometry import Geometry, StreamedGeometry
 from .macs2 import Macs2, Macs2Params
 from .listener import Macs2Listner
 

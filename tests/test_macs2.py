@@ -5,10 +5,11 @@ from bnp_macs2.call_peaks import call_peaks
 from bnp_macs2.cli import Macs2Params, Macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
-from bionumpy.arithmetics.geometry import Geometry, GenomicTrack
+from bionumpy.arithmetics.geometry import Geometry, GenomicTrack, StreamedGeometry
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
 from bionumpy.arithmetics.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
+from bionumpy.streams import NpDataclassStream
 import pytest
 
 
@@ -29,6 +30,12 @@ def chrom_sizes():
 @pytest.fixture
 def geometry(chrom_sizes):
     return Geometry(chrom_sizes)# {'chr1': 100, 'chr2': 60})
+
+
+@pytest.fixture
+def streamed_geometry(chrom_sizes):
+    return StreamedGeometry(chrom_sizes)# {'chr1': 100, 'chr2': 60})
+
 
 @pytest.fixture
 def pileup(chrom_sizes):
@@ -103,4 +110,14 @@ def testmacs2_acceptance(intervals, geometry):
                          p_value_cutoff=0.05,
                          n_reads = len(intervals))
     Macs2(geometry, params).run(intervals)
+
+
+def testmacs2_acceptance_stream(intervals, streamed_geometry):
+    params = Macs2Params(fragment_length=20,
+                         max_gap=10,
+                         p_value_cutoff=0.05,
+                         n_reads = len(intervals))
+    intervals = NpDataclassStream([intervals])
+    Macs2(streamed_geometry, params).run(intervals)
+
     # macs2(intervals, geometry, params)
