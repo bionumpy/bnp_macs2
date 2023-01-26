@@ -9,6 +9,7 @@ from bionumpy.datatypes import Interval, Bed6, NarrowPeak
 from bionumpy.arithmetics.geometry import Geometry, GenomicTrack
 from bionumpy import streamable
 from bionumpy.bnpdataclass import replace
+from bionumpy.computation_graph import compute, ComputationNode
 from .listener import Listner
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class Macs2Params:
     p_value_cutoff: float = 0.001
     max_gap: int = 30
     write_bdg: bool = False
+    effective_genome_size: int = 2600000
 
 
 def logsf(count: float, mu: float) -> float:
@@ -52,16 +54,9 @@ class register:
 
 
 class Macs2:
-    def __init__(self, geometry: Geometry, params: Macs2Params, listner: Listner=None):
-        self._geometry = geometry
+    def __init__(self, params: Macs2Params, listner: Listner=None):
         self._params = params
         self._listner = listner
-
-    def dedup(self, intervals):
-        s = self._geometry.sort(intervals)
-        filtered = s[np.insert(s.start[1:] != s.start[:-1], 0, True)]
-        logger.info(f'{len(filtered)} reads remaining of {len(s)}')
-        return filtered
 
     @register('peaks')
     def run(self, intervals: Interval) -> Interval:
@@ -77,17 +72,14 @@ class Macs2:
     def get_fragment_pileup(self, reads: Bed6) -> GenomicTrack:
         fragments = reads.extended_to_size(self._params.fragment_length)
         return fragments.get_pileup()
-    # return self._geometry.get_pileup(fragments)
 
     def _get_average_pileup(self, reads: Bed6, window_size: int) -> GenomicTrack:
         windows = get_windows(reads, window_size//2).clip()
         return windows.get_pileup()/window_size
-    # clipped = self._geometry.clip(windows)
-    # return self._geometry.get_pileup(windows)/window_size
 
     @register('control_lambda')
     def get_control_pileup(self, reads: Bed6, window_sizes: List[int]) -> GenomicTrack:
-        pileup = float(self._params.n_reads/self._geometry.size())
+        pileup = float(self._params.n_reads/self._params.effective_genome_size)
         for window_size in window_sizes:
             avg_pileup = self._get_average_pileup(reads, window_size)
             pileup = np.maximum(pileup, avg_pileup)
@@ -97,7 +89,6 @@ class Macs2:
         peaks = log_p_values < np.log(self._params.p_value_cutoff)
         peaks = peaks.to_intervals()
         peaks = peaks.merged(distance=self._params.max_gap)
-        # peaks = self._geometry.merge_intervals(peaks, distance=self._params.max_gap)
         peaks = remove_small_intervals(peaks, self._params.fragment_length)
         return peaks
 
@@ -105,15 +96,43 @@ class Macs2:
         peak_signals = p_values.extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
-        print(mean_values)
-        return NarrowPeak(
+        # chromosome, start, stop, max_values, mean_values = bnp.compute(
+        #     peaks.chromosome,
+        #     peaks.start,
+        #     peaks.stop,
+        #     max_values,
+        #     mean_values)
+        # N = len(start)
+        return compute(NarrowPeak, [
             peaks.chromosome,
             peaks.start,
             peaks.stop,
-            [f'peak_{i+1}' for i in range(len(peaks))],
-            (max_values*10).astype(int),
-            ['.']*len(peaks),
+            ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+            max_values*10,
+            ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
             mean_values,
             max_values,
             max_values,
-            [0]*len(peaks))
+            np.zeros_like(max_values, dtype=int)])
+        return NarrowPeak(
+            chromosome,
+            start,
+            stop,
+            [f'peak_{i+1}' for i in range(N)],
+            (max_values*10).astype(int),
+            ['.']*N,
+            mean_values,
+            max_values,
+            max_values,
+            [0]*N)
+    
+# peaks.chromosome,
+# peaks.start,
+# peaks.stop,
+# [f'peak_{i+1}' for i in range(len(peaks))],
+# (max_values*10).astype(int),
+# ['.']*len(peaks),
+# mean_values,
+# max_values,
+# max_values,
+# [0]*len(peaks))

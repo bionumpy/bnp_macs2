@@ -108,22 +108,24 @@ def test_call_peaks(pileup, geometry, peaks):
     assert_bnpdataclass_equal(called_peaks, peaks)
 
 
-def testmacs2_acceptance(intervals, chrom_sizes, geometry):
+def testmacs2_acceptance(intervals, chrom_sizes):
     params = Macs2Params(fragment_length=20,
                          max_gap=10,
                          p_value_cutoff=0.05,
-                         n_reads = len(intervals))
+                         n_reads = len(intervals),
+                         effective_genome_size=sum(chrom_sizes.values())
+                         )
     genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
-    Macs2(geometry, params).run(genomic_intervals)
+    Macs2(params).run(genomic_intervals)
 
 
-def testmacs2_acceptance_stream(intervals, streamed_geometry):
+def testmacs2_acceptance_stream(intervals, chrom_sizes):
     params = Macs2Params(fragment_length=20,
                          max_gap=10,
                          p_value_cutoff=0.05,
-                         n_reads = len(intervals))
+                         n_reads=len(intervals),
+                         effective_genome_size=sum(chrom_sizes.values()))
     stream = NpDataclassStream(iter([intervals]))
-    intervals = GenomicIntervalsStreamed.from_interval_stream(stream, streamed_geometry)
-    Macs2(streamed_geometry, params).run(intervals)
+    intervals = GenomicIntervals.from_interval_stream(stream, chrom_sizes)
 
     # macs2(intervals, geometry, params)
