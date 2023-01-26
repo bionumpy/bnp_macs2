@@ -4,7 +4,7 @@ import numpy as np
 import logging
 
 import bionumpy as bnp
-from bionumpy.arithmetics.geometry import Geometry, StreamedGeometry
+from bionumpy.arithmetics.geometry import Geometry, StreamedGeometry, GenomicIntervals
 from .macs2 import Macs2, Macs2Params
 from .listener import Macs2Listner
 
@@ -26,8 +26,12 @@ def main(filename: str,
         p_value_cutoff=p_value_cutoff,
         max_gap=int(tag_size),
         n_reads=bnp.count_entries(filename))
+
     m = Macs2(Geometry(chrom_sizes), params, listner)
-    result = m.run(intervals)
+    genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
+    return m.run(genomic_intervals)
+    # genome_intervals = geometry.split_chromosomes(intervals)
+    result = (geometry.apply(run, i).run(i) for name, i in groupby(intervals, 'chromosome'))
     return result
 
 

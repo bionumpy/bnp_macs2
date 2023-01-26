@@ -8,15 +8,16 @@ import logging
 from bionumpy.datatypes import Interval, Bed6, NarrowPeak
 from bionumpy.arithmetics.geometry import Geometry, GenomicTrack
 from bionumpy import streamable
+from bionumpy.bnpdataclass import replace
 from .listener import Listner
 
 logger = logging.getLogger(__name__)
 
-@streamable()
+
+# @streamable()
 def get_windows(intervals: Interval, flank: int):
-    return dataclasses.replace(intervals,
-                               start=intervals.start-flank,
-                               stop=intervals.start+flank)
+    return replace(intervals, start=intervals.start-flank,
+                   stop=intervals.start+flank)
 
 
 @streamable()
@@ -74,13 +75,15 @@ class Macs2:
 
     @register('treat_pileup')
     def get_fragment_pileup(self, reads: Bed6) -> GenomicTrack:
-        fragments = self._geometry.extend_to_size(reads, self._params.fragment_length)
-        return self._geometry.get_pileup(fragments)
+        fragments = reads.extended_to_size(self._params.fragment_length)
+        return fragments.get_pileup()
+    # return self._geometry.get_pileup(fragments)
 
     def _get_average_pileup(self, reads: Bed6, window_size: int) -> GenomicTrack:
-        windows = get_windows(reads, window_size//2)
-        clipped = self._geometry.clip(windows)
-        return self._geometry.get_pileup(clipped)/window_size
+        windows = get_windows(reads, window_size//2).clip()
+        return windows.get_pileup()/window_size
+    # clipped = self._geometry.clip(windows)
+    # return self._geometry.get_pileup(windows)/window_size
 
     @register('control_lambda')
     def get_control_pileup(self, reads: Bed6, window_sizes: List[int]) -> GenomicTrack:
@@ -90,15 +93,16 @@ class Macs2:
             pileup = np.maximum(pileup, avg_pileup)
         return pileup*self._params.fragment_length
 
-    def call_peaks(self, log_p_values):
+    def call_peaks(self, log_p_values: GenomicTrack):
         peaks = log_p_values < np.log(self._params.p_value_cutoff)
         peaks = peaks.to_intervals()
-        peaks = self._geometry.merge_intervals(peaks, distance=self._params.max_gap)
+        peaks = peaks.merged(distance=self._params.max_gap)
+        # peaks = self._geometry.merge_intervals(peaks, distance=self._params.max_gap)
         peaks = remove_small_intervals(peaks, self._params.fragment_length)
         return peaks
 
     def get_narrow_peak(self, peaks: Interval, p_values: GenomicTrack):
-        peak_signals = p_values.get_intervals(peaks, stranded=False)
+        peak_signals = p_values.extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
         print(mean_values)

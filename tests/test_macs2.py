@@ -5,11 +5,12 @@ from bnp_macs2.call_peaks import call_peaks
 from bnp_macs2.cli import Macs2Params, Macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
-from bionumpy.arithmetics.geometry import Geometry, GenomicTrack, StreamedGeometry
+from bionumpy.arithmetics.geometry import Geometry, GenomicTrack, StreamedGeometry, GenomicIntervals
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
 from bionumpy.arithmetics.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
 from bionumpy.streams import NpDataclassStream
+from bionumpy.computation_graph import StreamNode
 import pytest
 
 
@@ -21,6 +22,7 @@ def intervals():
          ('chr1', 40, 60, '.', '.', '-'),
          ('chr1', 15, 35, '.', '.', '+'),
          ('chr2', 15, 35, '.', '.', '+')])
+
 
 @pytest.fixture
 def chrom_sizes():
@@ -48,10 +50,12 @@ def pileup(chrom_sizes):
     rle = GenomicRunLengthArray.from_array(dense_pileup)
     return GenomicTrack.from_global_data(rle, global_offset)
 
+
 @pytest.fixture
 def peaks():
     return Interval.from_entry_tuples([
         ('chr1', 10, 60)])
+
 
 def dense_fragment_pileup(intervals, fragment_length, size):
     pileup = np.zeros(size, dtype=int)
@@ -104,12 +108,13 @@ def test_call_peaks(pileup, geometry, peaks):
     assert_bnpdataclass_equal(called_peaks, peaks)
 
 
-def testmacs2_acceptance(intervals, geometry):
+def testmacs2_acceptance(intervals, chrom_sizes, geometry):
     params = Macs2Params(fragment_length=20,
                          max_gap=10,
                          p_value_cutoff=0.05,
                          n_reads = len(intervals))
-    Macs2(geometry, params).run(intervals)
+    genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
+    Macs2(geometry, params).run(genomic_intervals)
 
 
 def testmacs2_acceptance_stream(intervals, streamed_geometry):
@@ -117,7 +122,8 @@ def testmacs2_acceptance_stream(intervals, streamed_geometry):
                          max_gap=10,
                          p_value_cutoff=0.05,
                          n_reads = len(intervals))
-    intervals = NpDataclassStream([intervals])
+    stream = NpDataclassStream(iter([intervals]))
+    intervals = GenomicIntervalsStreamed.from_interval_stream(stream, streamed_geometry)
     Macs2(streamed_geometry, params).run(intervals)
 
     # macs2(intervals, geometry, params)
