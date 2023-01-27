@@ -4,13 +4,15 @@ import numpy as np
 import logging
 
 import bionumpy as bnp
-from bionumpy.arithmetics.geometry import Geometry, StreamedGeometry, GenomicIntervals
+from bionumpy.arithmetics.genomic_intervals import GenomicIntervals
 from .macs2 import Macs2, Macs2Params
 from .listener import Macs2Listner
 
 logging.basicConfig(level=logging.INFO)
 
 stream = False
+
+
 def main(filename: str,
          genome_file: str,
          fragment_length: int = 150,

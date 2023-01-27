@@ -7,7 +7,7 @@ import logging
 
 from bionumpy.datatypes import Interval, Bed6, NarrowPeak
 from bionumpy.arithmetics.genomic_track import GenomicTrack
-from bionumpy.arithmetics.genomic_intervals import GenomicIntervals
+from bionumpy.arithmetics.genomic_intervals import GenomicIntervals, GenomicIntervalsStreamed
 from bionumpy.bnpdataclass import replace
 from bionumpy.computation_graph import compute, ComputationNode
 from .listener import Listner, register
@@ -84,7 +84,7 @@ class Macs2:
         peak_signals = p_values.extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
-        if True:
+        if isinstance(peaks, GenomicIntervalsStreamed):
             return compute(NarrowPeak, [
                 peaks.chromosome,
                 peaks.start,

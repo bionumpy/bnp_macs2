@@ -5,7 +5,9 @@ from bnp_macs2.call_peaks import call_peaks
 from bnp_macs2.cli import Macs2Params, Macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
-from bionumpy.arithmetics.geometry import Geometry, GenomicTrack, StreamedGeometry, GenomicIntervals
+from bionumpy.arithmetics.geometry import Geometry
+from bionumpy.arithmetics.genomic_intervals import GenomicIntervals
+from bionumpy.arithmetics.genomic_track import GenomicTrack
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
 from bionumpy.arithmetics.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
@@ -124,9 +126,8 @@ def test_get_control_pileup(intervals, geometry, macs2_obj, genomic_intervals):
 
 
 def test_call_peaks(pileup, peaks, macs2_obj):
-    called_peaks = macs2_obj.call_peaks(np.log(pileup)).to_dataclass()
+    called_peaks = macs2_obj.call_peaks(np.log(pileup)).get_data()
     print(called_peaks.chromosome.encoding)
-    # called_peaks.chromosome = called_peaks.chromosome.encoding.decode(called_peaks.chromosome)
     assert_bnpdataclass_equal(called_peaks, peaks)
 
 
