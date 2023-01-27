@@ -22,7 +22,7 @@ class Macs2Listner(Listner):
         bnp.open(self._filename_template('treat_pileup.bdg'), 'w').write(track.to_bedgraph())
 
     def p_scores(self, track):
-        return 
+        return
         plt.plot(track._global_track.to_array(), label='p_scores'); plt.legend(); plt.show()
 
     def peaks(self, peaks: bnp.datatypes.NarrowPeak):

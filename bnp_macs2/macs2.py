@@ -58,6 +58,10 @@ class Macs2:
         self._params = params
         self._listner = listner
 
+    @property
+    def params(self):
+        return self._params
+
     @register('peaks')
     def run(self, intervals: Interval) -> Interval:
         fragment_pileup = self.get_fragment_pileup(intervals)
@@ -82,7 +86,12 @@ class Macs2:
         pileup = float(self._params.n_reads/self._params.effective_genome_size)
         for window_size in window_sizes:
             avg_pileup = self._get_average_pileup(reads, window_size)
+            print(pileup)
+            print(avg_pileup)
+            print((avg_pileup > pileup).sum())
             pileup = np.maximum(pileup, avg_pileup)
+
+            print(pileup)
         return pileup*self._params.fragment_length
 
     def call_peaks(self, log_p_values: GenomicTrack):
@@ -103,21 +112,24 @@ class Macs2:
         #     max_values,
         #     mean_values)
         # N = len(start)
-        return compute(NarrowPeak, [
+
+        if True: 
+            return compute(NarrowPeak, [
+                peaks.chromosome,
+                peaks.start,
+                peaks.stop,
+                ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+                max_values*10,
+                ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+                mean_values,
+                max_values,
+                max_values,
+                np.zeros_like(max_values, dtype=int)])
+        N = len(peaks)
+        return NarrowPeak(
             peaks.chromosome,
             peaks.start,
             peaks.stop,
-            ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
-            max_values*10,
-            ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
-            mean_values,
-            max_values,
-            max_values,
-            np.zeros_like(max_values, dtype=int)])
-        return NarrowPeak(
-            chromosome,
-            start,
-            stop,
             [f'peak_{i+1}' for i in range(N)],
             (max_values*10).astype(int),
             ['.']*N,

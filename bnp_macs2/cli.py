@@ -26,15 +26,13 @@ def main(filename: str,
         fragment_length=fragment_length,
         p_value_cutoff=p_value_cutoff,
         max_gap=int(tag_size),
-        n_reads=bnp.count_entries(filename))
+        n_reads=bnp.count_entries(filename),
+        effective_genome_size = sum(chrom_sizes.values())
+    )
 
     m = Macs2(params, listner)
-    # genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
     genomic_intervals = GenomicIntervals.from_interval_stream(intervals, chrom_sizes)
     return m.run(genomic_intervals)
-    # genome_intervals = geometry.split_chromosomes(intervals)
-    result = (geometry.apply(run, i).run(i) for name, i in groupby(intervals, 'chromosome'))
-    return result
 
 
 def run():

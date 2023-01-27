@@ -25,8 +25,27 @@ def intervals():
 
 
 @pytest.fixture
+def params(chrom_sizes, intervals):
+    return Macs2Params(fragment_length=20,
+                       max_gap=10,
+                       p_value_cutoff=0.05,
+                       n_reads=len(intervals),
+                       effective_genome_size=sum(chrom_sizes.values()))
+
+
+@pytest.fixture
+def macs2_obj(params):
+    return Macs2(params)
+
+
+@pytest.fixture
 def chrom_sizes():
     return {'chr1': 100, 'chr2': 60}
+
+
+@pytest.fixture
+def genomic_intervals(intervals, chrom_sizes):
+    return GenomicIntervals.from_intervals(intervals, chrom_sizes)
 
 
 @pytest.fixture
@@ -83,49 +102,41 @@ def dense_control_pileup(intervals, window_sizes, read_rate, size):
     return np.maximum(r, read_rate)
 
 
-def test_get_fragment_pileup(intervals: Bed6, geometry: Geometry):
+def test_get_fragment_pileup(intervals: Bed6, macs2_obj, geometry, genomic_intervals):
     true_pileup = {name: dense_fragment_pileup(intervals[str_equal(intervals.chromosome, name)], 20, geometry.chrom_size(name)) for name in geometry.names()}
-    fragment_pileup = get_fragment_pileup(intervals, 20, geometry)
+
+    fragment_pileup = macs2_obj.get_fragment_pileup(genomic_intervals) # , geometry)
     np.testing.assert_equal(true_pileup, fragment_pileup.to_dict())
 
 
 @pytest.mark.parametrize('window_size', [10, 20])
-def test_get_average_pileup(intervals, geometry, window_size):
+def test_get_average_pileup(intervals, geometry, window_size, macs2_obj, genomic_intervals):
     true_pileup = {name: dense_average_pileup(intervals[str_equal(intervals.chromosome, name)], window_size, geometry.chrom_size(name)) for name in geometry.names()}
-    avg_pileup = get_average_pileup(intervals, window_size, geometry)
+    avg_pileup = macs2_obj._get_average_pileup(genomic_intervals, window_size)# , geometry)
     np.testing.assert_equal(true_pileup, avg_pileup.to_dict())
 
 
-def test_get_control_pileup(intervals, geometry):
-    true_pileup = {name: dense_control_pileup(intervals[str_equal(intervals.chromosome, name)], [10, 20], 0.1, geometry.chrom_size(name)) for name in geometry.names()}
-    control_pileup = get_control_pileup(intervals, [10, 20], 0.1, geometry)
-    np.testing.assert_equal(true_pileup, control_pileup.to_dict())    
+def test_get_control_pileup(intervals, geometry, macs2_obj, genomic_intervals):
+    read_rate = len(intervals)/macs2_obj.params.effective_genome_size
+    true_pileup = {name: dense_control_pileup(intervals[str_equal(intervals.chromosome, name)], [10, 20], read_rate, geometry.chrom_size(name))*macs2_obj.params.fragment_length for name in geometry.names()}
+    control_pileup = macs2_obj.get_control_pileup(genomic_intervals, [10, 20])# , 0.1, geometry)
+    np.testing.assert_equal(true_pileup, control_pileup.to_dict())
 
 
-def test_call_peaks(pileup, geometry, peaks):
-    called_peaks = call_peaks(np.log(pileup), 0.05, 20, 10, geometry)
-    called_peaks.chromosome = called_peaks.chromosome.encoding.decode(called_peaks.chromosome)
+def test_call_peaks(pileup, peaks, macs2_obj):
+    called_peaks = macs2_obj.call_peaks(np.log(pileup)).to_dataclass()
+    print(called_peaks.chromosome.encoding)
+    # called_peaks.chromosome = called_peaks.chromosome.encoding.decode(called_peaks.chromosome)
     assert_bnpdataclass_equal(called_peaks, peaks)
 
 
-def testmacs2_acceptance(intervals, chrom_sizes):
-    params = Macs2Params(fragment_length=20,
-                         max_gap=10,
-                         p_value_cutoff=0.05,
-                         n_reads = len(intervals),
-                         effective_genome_size=sum(chrom_sizes.values())
-                         )
+def testmacs2_acceptance(intervals, chrom_sizes, macs2_obj):
     genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
-    Macs2(params).run(genomic_intervals)
+    macs2_obj.run(genomic_intervals)
 
 
-def testmacs2_acceptance_stream(intervals, chrom_sizes):
-    params = Macs2Params(fragment_length=20,
-                         max_gap=10,
-                         p_value_cutoff=0.05,
-                         n_reads=len(intervals),
-                         effective_genome_size=sum(chrom_sizes.values()))
+def testmacs2_acceptance_stream(intervals, chrom_sizes, macs2_obj):
     stream = NpDataclassStream(iter([intervals]))
-    intervals = GenomicIntervals.from_interval_stream(stream, chrom_sizes)
+    genomic_intervals = GenomicIntervals.from_interval_stream(stream, chrom_sizes)
+    macs2_obj.run(genomic_intervals)
 
-    # macs2(intervals, geometry, params)
