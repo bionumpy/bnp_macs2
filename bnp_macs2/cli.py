@@ -6,7 +6,7 @@ import logging
 import bionumpy as bnp
 from bionumpy.arithmetics.genomic_intervals import GenomicIntervals
 from .macs2 import Macs2, Macs2Params
-from .listener import Macs2Listner
+from .listener import Macs2Listner, StreamListner
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +29,7 @@ def main(filename: str,
         intervals = bnp.open(filename, buffer_type=bnp.io.delimited_buffers.Bed6Buffer).read()
     # intervals = bnp.open(filename, buffer_type=bnp.io.delimited_buffers.Bed6Buffer).read_chunks()
     listner = Macs2Listner(lambda name: outprefix+name)
+    listner = StreamListner(lambda name: outprefix+name)
     params = Macs2Params(
         fragment_length=fragment_length,
         p_value_cutoff=p_value_cutoff,
@@ -37,7 +38,7 @@ def main(filename: str,
         effective_genome_size = sum(chrom_sizes.values())
     )
 
-    m = Macs2(params) # , listner)
+    m = Macs2(params, listner)
     if stream:
         genomic_intervals = GenomicIntervals.from_interval_stream(intervals, chrom_sizes)
     else:

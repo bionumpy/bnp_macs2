@@ -56,7 +56,7 @@ class Macs2:
         return self.get_narrow_peak(peaks, np.log10(np.e)*-p_scores)
 
     @register('treat_pileup')
-    def get_fragment_pileup(self, reads: Bed6) -> GenomicTrack:
+    def get_fragment_pileup(self, reads: GenomicIntervals) -> GenomicTrack:
         fragments = reads.extended_to_size(self._params.fragment_length)
         return fragments.get_pileup()
 
@@ -75,7 +75,6 @@ class Macs2:
     def call_peaks(self, log_p_values: GenomicTrack):
         peaks = log_p_values < np.log(self._params.p_value_cutoff)
         peaks = GenomicIntervals.from_track(peaks)
-        # peaks.to_intervals()
         peaks = peaks.merged(distance=self._params.max_gap)
         peaks = remove_small_intervals(peaks, self._params.fragment_length)
         return peaks
@@ -84,7 +83,7 @@ class Macs2:
         peak_signals = p_values.extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
-        if True:
+        if isinstance(mean_values, ComputationNode):
             return compute(NarrowPeak, [
                 peaks.chromosome,
                 peaks.start,

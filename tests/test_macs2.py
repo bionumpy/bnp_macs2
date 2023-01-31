@@ -1,5 +1,7 @@
 import numpy as np
+from numpy.testing import assert_equal
 from bnp_macs2.cli import Macs2Params, Macs2
+from bnp_macs2.listener import DebugListnerStream
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
 from bionumpy.arithmetics import Geometry, GenomicTrack, StreamedGeometry, GenomicIntervals
@@ -8,6 +10,11 @@ from bionumpy.arithmetics.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
 from bionumpy.streams import NpDataclassStream
 import pytest
+
+
+@pytest.fixture
+def debug_listner():
+    return DebugListnerStream()
 
 
 @pytest.fixture
@@ -30,8 +37,8 @@ def params(chrom_sizes, intervals):
 
 
 @pytest.fixture
-def macs2_obj(params):
-    return Macs2(params)
+def macs2_obj(params, debug_listner):
+    return Macs2(params, debug_listner)
 
 
 @pytest.fixture
@@ -120,7 +127,7 @@ def test_get_control_pileup(intervals, geometry, macs2_obj, genomic_intervals):
 
 
 def test_call_peaks(pileup, peaks, macs2_obj):
-    called_peaks = macs2_obj.call_peaks(np.log(pileup)).to_dataclass()
+    called_peaks = macs2_obj.call_peaks(np.log(pileup)).get_data()
     print(called_peaks.chromosome.encoding)
     # called_peaks.chromosome = called_peaks.chromosome.encoding.decode(called_peaks.chromosome)
     assert_bnpdataclass_equal(called_peaks, peaks)
@@ -131,7 +138,10 @@ def testmacs2_acceptance(intervals, chrom_sizes, macs2_obj):
     macs2_obj.run(genomic_intervals)
 
 
-def testmacs2_acceptance_stream(intervals, chrom_sizes, macs2_obj):
+def testmacs2_acceptance_stream(intervals, chrom_sizes, macs2_obj: Macs2):
     stream = NpDataclassStream(iter([intervals]))
     genomic_intervals = GenomicIntervals.from_interval_stream(stream, chrom_sizes)
-    macs2_obj.run(genomic_intervals)
+    peaks = macs2_obj.run(genomic_intervals)
+    genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
+    real_peaks = macs2_obj.run(genomic_intervals)
+    assert_equal(peaks.start, real_peaks.start)
