@@ -80,7 +80,7 @@ class Macs2:
         return peaks
 
     def get_narrow_peak(self, peaks: Interval, p_values: GenomicTrack):
-        peak_signals = p_values.extract_intervals(peaks, stranded=False)
+        peak_signals = p_values[peaks]  # extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
         if isinstance(mean_values, ComputationNode):
