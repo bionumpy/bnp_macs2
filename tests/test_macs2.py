@@ -1,16 +1,12 @@
 import numpy as np
-from bnp_macs2.fragment_pileup import get_fragment_pileup
-from bnp_macs2.control_pileup import get_average_pileup, get_control_pileup
-from bnp_macs2.call_peaks import call_peaks
 from bnp_macs2.cli import Macs2Params, Macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
-from bionumpy.arithmetics.geometry import Geometry, GenomicTrack, StreamedGeometry, GenomicIntervals
+from bionumpy.arithmetics import Geometry, GenomicTrack, StreamedGeometry, GenomicIntervals
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
 from bionumpy.arithmetics.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
 from bionumpy.streams import NpDataclassStream
-from bionumpy.computation_graph import StreamNode
 import pytest
 
 
@@ -139,4 +135,3 @@ def testmacs2_acceptance_stream(intervals, chrom_sizes, macs2_obj):
     stream = NpDataclassStream(iter([intervals]))
     genomic_intervals = GenomicIntervals.from_interval_stream(stream, chrom_sizes)
     macs2_obj.run(genomic_intervals)
-

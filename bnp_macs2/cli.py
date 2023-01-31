@@ -4,13 +4,15 @@ import numpy as np
 import logging
 
 import bionumpy as bnp
-from bionumpy.arithmetics.geometry import Geometry, StreamedGeometry, GenomicIntervals
+from bionumpy.arithmetics.genomic_intervals import GenomicIntervals
 from .macs2 import Macs2, Macs2Params
 from .listener import Macs2Listner
 
 logging.basicConfig(level=logging.INFO)
 
 stream = False
+
+
 def main(filename: str,
          genome_file: str,
          fragment_length: int = 150,
@@ -35,7 +37,7 @@ def main(filename: str,
         effective_genome_size = sum(chrom_sizes.values())
     )
 
-    m = Macs2(params, listner)
+    m = Macs2(params) # , listner)
     if stream:
         genomic_intervals = GenomicIntervals.from_interval_stream(intervals, chrom_sizes)
     else:
