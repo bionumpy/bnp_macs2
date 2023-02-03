@@ -4,12 +4,12 @@ import dataclasses
 from scipy.special import pdtrc
 import numpy as np
 import logging
-
+import bionumpy as bnp
 from bionumpy.datatypes import Interval, Bed6, NarrowPeak
-from bionumpy.arithmetics.genomic_track import GenomicTrack
-from bionumpy.arithmetics.genomic_intervals import GenomicIntervals
+from bionumpy.genomic_data.genomic_track import GenomicTrack
+from bionumpy.genomic_data.genomic_intervals import GenomicIntervals
 from bionumpy.bnpdataclass import replace
-from bionumpy.computation_graph import compute, ComputationNode
+from bionumpy.computation_graph import compute, ComputationNode, Node
 from .listener import Listner, register
 
 logger = logging.getLogger(__name__)
@@ -83,27 +83,52 @@ class Macs2:
         peak_signals = p_values[peaks]  # extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
-        if isinstance(mean_values, ComputationNode):
-            return compute(NarrowPeak, [
+        if isinstance(max_values, Node):
+            params = compute(
                 peaks.chromosome,
                 peaks.start,
                 peaks.stop,
-                ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+                ComputationNode(lambda x: bnp.as_encoded_array(['.']*len(x)), [peaks.start]),
                 max_values*10,
-                ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+                ComputationNode(lambda x: bnp.as_encoded_array(['.']*len(x)), [peaks.start]),
                 mean_values,
                 max_values,
                 max_values,
-                np.zeros_like(max_values, dtype=int)])
-        N = len(peaks)
-        return NarrowPeak(
-            peaks.chromosome,
-            peaks.start,
-            peaks.stop,
-            [f'peak_{i+1}' for i in range(N)],
-            (max_values*10).astype(int),
-            ['.']*N,
-            mean_values,
-            max_values,
-            max_values,
-            [0]*N)
+                np.zeros_like(max_values, dtype=int))
+        else:
+            N = len(peaks)
+            params = (
+                peaks.chromosome,
+                peaks.start,
+                peaks.stop,
+                [f'peak_{i+1}' for i in range(N)],
+                (max_values*10).astype(int),
+                ['.']*N,
+                mean_values,
+                max_values,
+                max_values,
+                [0]*N)
+        return NarrowPeak(*params)
+    # return compute(NarrowPeak, [
+    #             peaks.chromosome,
+    #             peaks.start,
+    #             peaks.stop,
+    #             ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+    #             max_values*10,
+    #             ComputationNode(lambda x: ['.']*len(x), [peaks.start]),
+    #             mean_values,
+    #             max_values,
+    #             max_values,
+    #             np.zeros_like(max_values, dtype=int)])
+    #     N = len(peaks)
+    #     return NarrowPeak(
+    #         peaks.chromosome,
+    #         peaks.start,
+    #         peaks.stop,
+    #         [f'peak_{i+1}' for i in range(N)],
+    #         (max_values*10).astype(int),
+    #         ['.']*N,
+    #         mean_values,
+    #         max_values,
+    #         max_values,
+    #         [0]*N)

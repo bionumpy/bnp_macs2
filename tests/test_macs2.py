@@ -4,9 +4,10 @@ from bnp_macs2.cli import Macs2Params, Macs2
 from bnp_macs2.listener import DebugListnerStream
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
-from bionumpy.arithmetics import Geometry, GenomicTrack, StreamedGeometry, GenomicIntervals
+from bionumpy.genomic_data import GenomicTrack, GenomicIntervals
+from bionumpy.genomic_data.geometry import Geometry, StreamedGeometry
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
-from bionumpy.arithmetics.global_offset import GlobalOffset
+from bionumpy.genomic_data.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
 from bionumpy.streams import NpDataclassStream
 import pytest

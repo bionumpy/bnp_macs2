@@ -1,5 +1,5 @@
 import bionumpy as bnp
-from bionumpy.arithmetics.geometry import GenomicTrack
+from bionumpy.genomic_data.geometry import GenomicTrack
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
