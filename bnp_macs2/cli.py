@@ -40,7 +40,7 @@ def main(filename: str,
         effective_genome_size = genome.size)
 
     m = Macs2(params, listner)
-    intervals = genome.read_intervals(filename)
+    intervals = genome.read_intervals(filename, stream=False, stranded=True)
     # genomic_intervals = genome.open(filename, ...) -> Ineterf
     #if stream:
     #    genomic_intervals = GenomicIntervals.from_interval_stream(intervals, chrom_sizes)
