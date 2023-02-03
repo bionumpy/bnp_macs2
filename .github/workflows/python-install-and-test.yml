@@ -27,6 +27,7 @@ jobs:
         python-version: "${{ matrix.python-version }}"
     - name: Install bionumpy
       run: |
+        pip install git+https://github.com/bionumpy/npstructures.git/@dev
         pip install git+https://github.com/bionumpy/bionumpy.git/@dev
     - name: Install dependencies
       run: |
