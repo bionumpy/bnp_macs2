@@ -25,10 +25,9 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: "${{ matrix.python-version }}"
-    - name: Install npstructures dev
-      if: github.ref != 'refs/heads/master'
+    - name: Install bionumpy
       run: |
-        pip install git+https://github.com/bionumpy/npstructures.git/@dev
+        pip install git+https://github.com/bionumpy/bionumpy.git/@dev
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
