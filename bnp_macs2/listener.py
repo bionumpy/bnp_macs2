@@ -1,5 +1,5 @@
 import bionumpy as bnp
-from bionumpy.genomic_data.geometry import GenomicTrack
+from bionumpy.genomic_data import GenomicArray
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
@@ -17,11 +17,11 @@ class FileListner(Listner):
 
 
 class Macs2Listner(FileListner):
-    def control_lambda(self, track: GenomicTrack):
+    def control_lambda(self, track: GenomicArray):
         plt.plot(track._global_track.to_array(), label='control_lambda'); plt.legend(); plt.show()
         bnp.open(self._filename_template('control_lambda.bdg'), 'w').write(track.to_bedgraph())
 
-    def treat_pileup(self, track: GenomicTrack):
+    def treat_pileup(self, track: GenomicArray):
         plt.plot(track._global_track.to_array(), label='treat_pileup')
         bnp.open(self._filename_template('treat_pileup.bdg'), 'w').write(track.to_bedgraph())
 

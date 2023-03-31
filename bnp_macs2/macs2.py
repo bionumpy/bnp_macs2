@@ -6,10 +6,9 @@ import numpy as np
 import logging
 import bionumpy as bnp
 from bionumpy.datatypes import Interval, Bed6, NarrowPeak
-from bionumpy.arithmetics.genomic_track import GenomicTrack
-from bionumpy.arithmetics.genomic_intervals import GenomicIntervals, GenomicIntervalsStreamed
+from bionumpy.genomic_data import GenomicArray, GenomicIntervals
 from bionumpy.bnpdataclass import replace
-from bionumpy.computation_graph import compute, ComputationNode, Node
+from bionumpy.computation_graph import compute, ComputationNode
 from .listener import Listner, register
 
 logger = logging.getLogger(__name__)
@@ -56,34 +55,34 @@ class Macs2:
         return self.get_narrow_peak(peaks, np.log10(np.e)*-p_scores)
 
     @register('treat_pileup')
-    def get_fragment_pileup(self, reads: GenomicIntervals) -> GenomicTrack:
+    def get_fragment_pileup(self, reads: GenomicIntervals) -> GenomicArray:
         fragments = reads.extended_to_size(self._params.fragment_length)
         return fragments.get_pileup()
 
-    def _get_average_pileup(self, reads: Bed6, window_size: int) -> GenomicTrack:
+    def _get_average_pileup(self, reads: Bed6, window_size: int) -> GenomicArray:
         windows = get_windows(reads, window_size//2).clip()
         return windows.get_pileup()/window_size
 
     @register('control_lambda')
-    def get_control_pileup(self, reads: Bed6, window_sizes: List[int]) -> GenomicTrack:
+    def get_control_pileup(self, reads: Bed6, window_sizes: List[int]) -> GenomicArray:
         pileup = float(self._params.n_reads/self._params.effective_genome_size)
         for window_size in window_sizes:
             avg_pileup = self._get_average_pileup(reads, window_size)
             pileup = np.maximum(pileup, avg_pileup)
         return pileup*self._params.fragment_length
 
-    def call_peaks(self, log_p_values: GenomicTrack):
+    def call_peaks(self, log_p_values: GenomicArray):
         peaks = log_p_values < np.log(self._params.p_value_cutoff)
         peaks = GenomicIntervals.from_track(peaks)
         peaks = peaks.merged(distance=self._params.max_gap)
         peaks = remove_small_intervals(peaks, self._params.fragment_length)
         return peaks
 
-    def get_narrow_peak(self, peaks: Interval, p_values: GenomicTrack):
+    def get_narrow_peak(self, peaks: Interval, p_values: GenomicArray):
         peak_signals = p_values[peaks]  # extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
-        if isinstance(peaks, GenomicIntervalsStreamed):
+        if isinstance(peaks, GenomicIntervals):
             return compute(NarrowPeak, [
                 peaks.chromosome,
                 peaks.start,
@@ -94,7 +93,7 @@ class Macs2:
                 mean_values,
                 max_values,
                 max_values,
-                np.zeros_like(max_values, dtype=int))
+                np.zeros_like(max_values, dtype=int)])
         else:
             N = len(peaks)
             params = (

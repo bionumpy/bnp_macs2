@@ -4,7 +4,7 @@ from bnp_macs2.cli import Macs2Params, Macs2
 from bnp_macs2.listener import DebugListnerStream
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
-from bionumpy.genomic_data import GenomicTrack, GenomicIntervals
+from bionumpy.genomic_data import GenomicArray, GenomicIntervals, Genome
 from bionumpy.genomic_data.geometry import Geometry, StreamedGeometry
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
 from bionumpy.genomic_data.global_offset import GlobalOffset
@@ -46,10 +46,14 @@ def macs2_obj(params, debug_listner):
 def chrom_sizes():
     return {'chr1': 100, 'chr2': 60}
 
+@pytest.fixture
+def genome(chrom_sizes):
+    return Genome(chrom_sizes)
+
 
 @pytest.fixture
-def genomic_intervals(intervals, chrom_sizes):
-    return GenomicIntervals.from_intervals(intervals, chrom_sizes)
+def genomic_intervals(intervals, genome):
+    return genome.get_intervals(intervals)
 
 
 @pytest.fixture
@@ -71,7 +75,7 @@ def pileup(chrom_sizes):
     dense_pileup[71:79] = 0.02
     dense_pileup[110:119] = 0.01
     rle = GenomicRunLengthArray.from_array(dense_pileup)
-    return GenomicTrack.from_global_data(rle, global_offset)
+    return GenomicArray.from_global_data(rle, global_offset)
 
 
 @pytest.fixture
