@@ -1,6 +1,6 @@
 import logging
 from bionumpy.datatypes import Bed6
-from bionumpy.arithmetics.geometry import Geometry
+from bionumpy.genomic_data.geometry import Geometry
 import dataclasses
 import numpy as np
 logger = logging.getLogger(__name__)
