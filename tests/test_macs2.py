@@ -2,12 +2,12 @@ import numpy as np
 from numpy.testing import assert_equal
 from bnp_macs2.cli import Macs2Params, Macs2
 from bnp_macs2.listener import DebugListnerStream
+from bnp_macs2.oneliner import macs2
 from bionumpy import Bed6, str_equal
 from bionumpy.datatypes import Interval
 from bionumpy.genomic_data import GenomicArray, GenomicIntervals, Genome
 from bionumpy.genomic_data.geometry import Geometry, StreamedGeometry
 from bionumpy.arithmetics.intervals import GenomicRunLengthArray
-from bionumpy.genomic_data.global_offset import GlobalOffset
 from bionumpy.util.testing import assert_bnpdataclass_equal
 from bionumpy.streams import NpDataclassStream
 import pytest
@@ -46,9 +46,15 @@ def macs2_obj(params, debug_listner):
 def chrom_sizes():
     return {'chr1': 100, 'chr2': 60}
 
+
 @pytest.fixture
-def genome(chrom_sizes):
+def genome(chrom_sizes) -> Genome:
     return Genome(chrom_sizes)
+
+
+@pytest.fixture
+def genome_context(genome):
+    return genome.get_genome_context()
 
 
 @pytest.fixture
@@ -67,15 +73,14 @@ def streamed_geometry(chrom_sizes):
 
 
 @pytest.fixture
-def pileup(chrom_sizes):
-    global_offset = GlobalOffset(chrom_sizes)
+def pileup(genome_context):
     dense_pileup = np.full(160, 0.06, dtype=float)
     dense_pileup[10:30] = 0.04
     dense_pileup[39:60] = 0.03
     dense_pileup[71:79] = 0.02
     dense_pileup[110:119] = 0.01
     rle = GenomicRunLengthArray.from_array(dense_pileup)
-    return GenomicArray.from_global_data(rle, global_offset)
+    return GenomicArray.from_global_data(rle, genome_context)
 
 
 @pytest.fixture
@@ -133,19 +138,25 @@ def test_get_control_pileup(intervals, geometry, macs2_obj, genomic_intervals):
 
 def test_call_peaks(pileup, peaks, macs2_obj):
     called_peaks = macs2_obj.call_peaks(np.log(pileup)).get_data()
-    print(called_peaks.chromosome.encoding)
     assert_bnpdataclass_equal(called_peaks, peaks)
 
 
-def testmacs2_acceptance(intervals, chrom_sizes, macs2_obj):
-    genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
+def testmacs2_acceptance(intervals, genome_context, macs2_obj):
+    genomic_intervals = GenomicIntervals.from_intervals(intervals, genome_context)
     macs2_obj.run(genomic_intervals)
 
 
-def testmacs2_acceptance_stream(intervals, chrom_sizes, macs2_obj: Macs2):
-    stream = NpDataclassStream(iter([intervals]))
-    genomic_intervals = GenomicIntervals.from_interval_stream(stream, chrom_sizes)
+def testmacs_oneliner_acceptance(genomic_intervals, params):
+    macs2(genomic_intervals, params)
+
+
+def testmacs2_acceptance_stream(intervals, genome_context, macs2_obj: Macs2):
+    genomic_intervals = GenomicIntervals.from_intervals(intervals, genome_context)
+    real_peaks = macs2_obj.run(genomic_intervals)
+    print('>>>>>>>>>>>>>>', real_peaks, '<<<<<<<<<<<<<<<')
+    stream = NpDataclassStream(iter([intervals])) 
+    genomic_intervals = GenomicIntervals.from_interval_stream(stream, genome_context)
     peaks = macs2_obj.run(genomic_intervals)
-    genomic_intervals = GenomicIntervals.from_intervals(intervals, chrom_sizes)
+    genomic_intervals = GenomicIntervals.from_intervals(intervals, genome_context)
     real_peaks = macs2_obj.run(genomic_intervals)
     assert_equal(peaks.start, real_peaks.start)

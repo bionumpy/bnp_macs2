@@ -14,7 +14,8 @@ from .listener import Listner, register
 logger = logging.getLogger(__name__)
 
 
-def get_windows(intervals: Interval, flank: int):
+def get_windows(intervals: GenomicIntervals, flank: int):
+    return intervals.get_location('start').get_windows(window_size=flank*2)
     return replace(intervals, start=intervals.start-flank,
                    stop=intervals.start+flank)
 
@@ -31,6 +32,7 @@ class Macs2Params:
     max_gap: int = 30
     write_bdg: bool = False
     effective_genome_size: int = 2600000
+    window_sizes: List[int] = (10000,)
 
 
 def logsf(count: float, mu: float) -> float:
@@ -59,8 +61,9 @@ class Macs2:
         fragments = reads.extended_to_size(self._params.fragment_length)
         return fragments.get_pileup()
 
-    def _get_average_pileup(self, reads: Bed6, window_size: int) -> GenomicArray:
-        windows = get_windows(reads, window_size//2).clip()
+    def _get_average_pileup(self, reads: GenomicIntervals, window_size: int) -> GenomicArray:
+        # windows = reads.get_location('start').get_windows(window_size//2)
+        windows = get_windows(reads, window_size//2)
         return windows.get_pileup()/window_size
 
     @register('control_lambda')
@@ -82,32 +85,19 @@ class Macs2:
         peak_signals = p_values[peaks]  # extract_intervals(peaks, stranded=False)
         max_values = peak_signals.max(axis=-1)
         mean_values = peak_signals.mean(axis=-1)
-        if isinstance(peaks, GenomicIntervals):
-            return compute(NarrowPeak, [
-                peaks.chromosome,
-                peaks.start,
-                peaks.stop,
-                ComputationNode(lambda x: bnp.as_encoded_array(['.']*len(x)), [peaks.start]),
-                max_values*10,
-                ComputationNode(lambda x: bnp.as_encoded_array(['.']*len(x)), [peaks.start]),
-                mean_values,
-                max_values,
-                max_values,
-                np.zeros_like(max_values, dtype=int)])
-        else:
-            N = len(peaks)
-            params = (
-                peaks.chromosome,
-                peaks.start,
-                peaks.stop,
-                [f'peak_{i+1}' for i in range(N)],
-                (max_values*10).astype(int),
-                ['.']*N,
-                mean_values,
-                max_values,
-                max_values,
-                [0]*N)
-        return NarrowPeak(*params)
+        peaks, max_values, mean_values = compute([peaks, max_values, mean_values])
+        N = len(peaks)
+        return NarrowPeak(
+            peaks.chromosome,
+            peaks.start,
+            peaks.stop,
+            [f'peak_{i+1}' for i in range(N)],
+            (max_values*10).astype(int),
+            ['.']*N,
+            mean_values,
+            max_values,
+            max_values,
+            np.zeros_like(max_values, dtype=int))
     # return compute(NarrowPeak, [
     #             peaks.chromosome,
     #             peaks.start,
